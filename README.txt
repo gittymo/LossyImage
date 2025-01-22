@@ -21,8 +21,8 @@ would put the output in the image output656.jpg in the images folder.
 The three values before the input and output filepaths are:
 <Luminance bit field length> - This must be a value between 1 and 8 (in the example this is the first 6)
 <Chrominance bit field length> - This must be a value between 1 and 8 (in the example this is 5)
-<Chrominance block size> - The dimensions of the square block of pixels used for obtain the chrominance value 
-(this is the last 6 in the example) and must have be a value between 2 and 8.
+<Chrominance block size> - The dimensions of the square block of pixels used for obtain the average 
+chrominance value for the block (this is the last 6 in the example) and must have be a value between 2 and 8.
 
 Have a play around with the luminance and chrominance bit field lengths and the block size values and 
 see how different values affect compression ratio and the image quality.

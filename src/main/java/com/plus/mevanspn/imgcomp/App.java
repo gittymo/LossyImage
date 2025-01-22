@@ -54,9 +54,13 @@ public class App
                     }
 
                     // Work out the average Cr and Cb value, which will be used for every pixel in the 
-                    // compressed block.
-                    int averageCr = (int) (totalCr / (CrCbBlockSize * CrCbBlockSize));
-                    int averageCb = (int) (totalCb / (CrCbBlockSize * CrCbBlockSize));
+                    // compressed block. We need to make sure we're dividing by the correct number of 
+                    // pixels in the block, otherwise we'll end up with weird miscoloured blocks on the
+                    // right and bottom of the image.
+                    int xBlockSize = Math.min(CrCbBlockSize, image.getWidth() - x);
+                    int yBlockSize = Math.min(CrCbBlockSize, image.getHeight() - y);
+                    int averageCr = (int) (totalCr / (xBlockSize * yBlockSize));
+                    int averageCb = (int) (totalCb / (xBlockSize * yBlockSize));
                     // Now go through the block again and use the averaged Cr and Cb values and average of
                     // every two vertical luminance (Y) values as the compressed image data's YCrCb pixel values.
                     for (int yy = y; yy < image.getHeight() && yy < y + CrCbBlockSize; yy += 2) {

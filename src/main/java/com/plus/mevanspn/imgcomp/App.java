@@ -106,7 +106,7 @@ public class App
             int originalSize = rgbValues.length * 3;
             System.out.println("Image size is " + image.getWidth() + " x " + image.getHeight() + " pixels.");
             System.out.println("Using a compression block size of " + CrCbBlockSize + " x " + CrCbBlockSize + " pixels.");
-            System.out.println("Using " + YBitFieldLength + " bits for Y values and" + CrCbBitFieldLength + " bits for Cr and Cb values.");
+            System.out.println("Using " + YBitFieldLength + " bits for Y values and " + CrCbBitFieldLength + " bits for Cr and Cb values.");
             System.out.println("Original size: " + originalSize + " bytes");
             System.out.println("Compressed size: " + compressedSize + " bytes");
             System.out.printf("Compression ratio: %.2f%%\n",(float)compressedSize * 100 / originalSize);

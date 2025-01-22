@@ -4,10 +4,6 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.*;
 
-/**
- * Hello world!
- *
- */
 public class App 
 {
     public static void main( String[] args )
@@ -151,12 +147,12 @@ public class App
         return (int) (0.299 * red + 0.587 * green + 0.114 * blue);
     }
 
-    public static int getNumberInRangeFromArg(String arg, int min, int max, int defaultValue) {
+    public static int getNumberInRangeFromArg(String argString, int minimumValue, int maximumValue, int defaultValue) {
         int value = 0;
         try {
-            value = Integer.parseInt(arg);
-            if (value < min) value = min;
-            if (value > max) value = max;
+            value = Integer.parseInt(argString);
+            if (value < minimumValue) value = minimumValue;
+            if (value > maximumValue) value = maximumValue;
         } catch (Exception e) {
             value = defaultValue;
         }

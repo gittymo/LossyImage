@@ -31,3 +31,6 @@ NOTE:  Usually, after lossy compression, lossless compression algorithms are app
 shrink the file size.  I haven't applied any of these techniques.  Also, video compression uses 
 many other tricks such as moving window and rotoscoping which aren't in this demo (and obviously no 
 sound compression either!)
+
+I will eventually add lossless compression to this demo, along with other refinements (such as the 
+aforementioned luminance delta encoding).

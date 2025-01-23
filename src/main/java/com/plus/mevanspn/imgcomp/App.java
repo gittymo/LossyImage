@@ -28,23 +28,31 @@ public class App
 
         // Read the image and save a copy of it complete with compression artifacts.
         try {
-            // Read the image
+            // Read the image from the source file.
             BufferedImage image = ImageIO.read(new File(inputFile));
-            // Get the RGB values of the image pixels.
-            int[] rgbValues = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth()); 
-            // Create a new image with the same dimensions as the original.
-            BufferedImage compressedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
-            // Loop through the original image's RGB values and stored compressed equivalents in the new image.
 
+            // Define a couple of constants to prevent unnecessary function calls in loops.
+            final int IMAGE_WIDTH = image.getWidth();
+            final int IMAGE_HEIGHT = image.getHeight();
+
+            // Get the RGB values of the image pixels.
+            int[] rgbValues = image.getRGB(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null, 0, IMAGE_WIDTH); 
+            
+            // Create a new image with the same dimensions as the original.
+            BufferedImage compressedImage = new BufferedImage(IMAGE_WIDTH, IMAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
+            
+            // Create an array to store the compressed image's RGB values.
+            int[] compressedRGBValues = new int[rgbValues.length];
+            
+            // Loop through the original image's RGB values and stored compressed equivalents in the new image.
+            
             // First, work out the maximum and minimum luminance (Y) value and totals of all the Cr and Cb values in each block of 
             // blockSize x blockSize pixels.
-            for (int y = 0; y < image.getHeight(); y += CrCbBlockSize) {
-                for (int x = 0; x < image.getWidth(); x += CrCbBlockSize) {
+            for (int y = 0; y < IMAGE_HEIGHT; y += CrCbBlockSize) {
+                for (int x = 0; x < IMAGE_WIDTH; x += CrCbBlockSize) {
                     long totalCr = 0, totalCb = 0;
-                    for (int yy = y; yy < image.getHeight() && yy < y + CrCbBlockSize; yy++) {
-                        for (int xx = x; xx < image.getWidth() && xx < x + CrCbBlockSize; xx++) {
-                            // Get the pixel offset in the image's RGB values array.
-                            int offset = yy * image.getWidth() + xx;
+                    for (int yy = y; yy < IMAGE_HEIGHT && yy < y + CrCbBlockSize; yy++) {
+                        for (int xx = x, offset = (IMAGE_WIDTH * yy) + x; xx < IMAGE_WIDTH && xx < x + CrCbBlockSize; xx++, offset++) {
                             // Get the YCrCb values for the pixel.
                             int[] YCrCb = getYCrCb(rgbValues[offset]);
                             // Add the Cr and Cb values to the totals.
@@ -57,39 +65,36 @@ public class App
                     // compressed block. We need to make sure we're dividing by the correct number of 
                     // pixels in the block, otherwise we'll end up with weird miscoloured blocks on the
                     // right and bottom of the image.
-                    int xBlockSize = Math.min(CrCbBlockSize, image.getWidth() - x);
-                    int yBlockSize = Math.min(CrCbBlockSize, image.getHeight() - y);
+                    int xBlockSize = Math.min(CrCbBlockSize, IMAGE_WIDTH - x);
+                    int yBlockSize = Math.min(CrCbBlockSize, IMAGE_HEIGHT - y);
                     int averageCr = (int) (totalCr / (xBlockSize * yBlockSize));
                     int averageCb = (int) (totalCb / (xBlockSize * yBlockSize));
                     // Now go through the block again and use the averaged Cr and Cb values and average of
                     // every two vertical luminance (Y) values as the compressed image data's YCrCb pixel values.
-                    for (int yy = y; yy < image.getHeight() && yy < y + CrCbBlockSize; yy += 2) {
-                        for (int xx = x; xx < image.getWidth() && xx < x + CrCbBlockSize; xx++) {
+                    for (int yy = y; yy < IMAGE_HEIGHT && yy < y + CrCbBlockSize; yy += 2) {
+                        for (int xx = x; xx < IMAGE_WIDTH && xx < x + CrCbBlockSize; xx++) {
+                            // Get the total of every two vertical Y values in the block.
                             int totalY = 0;
-                            for (int yyy = yy; yyy < image.getHeight() && yyy < yy + 2; yyy++) {
-                                int offset = yyy * image.getWidth() + xx;
+                            for (int yyy = yy, offset = (IMAGE_WIDTH * yyy) + xx; yyy < IMAGE_HEIGHT && yyy < yy + 2; yyy++, offset += IMAGE_WIDTH) {
                                 int Y = getLuminance(rgbValues[offset]);
                                 totalY += Y;
                             }
+                            // Work out the average Y value.
                             int averageY = totalY / 2;
-                            for (int yyy = yy; yyy < image.getHeight() && yyy < yy + 2; yyy++) {
-                                // For the purposes of this demo, we're compressing (getPackedValue) and decompressing 
-                                // (getUnpackedValue) the Y, Cr and Cb values and then writing the decompressed values to the
-                                // output image.  In a real-world application, the packed values would be written to a file or
-                                // transmitted over a network and then unpacked and decompressed at the other end.
+
+                            // Now go through the block again and write the decompressed RGB values to the compressedRGBValues array.
+                            for (int yyy = yy, offset = (IMAGE_WIDTH * yyy) + xx; yyy < IMAGE_HEIGHT && yyy < yy + 2; yyy++, offset += IMAGE_WIDTH) {   
                                 int Y = getUnpackedValue(getPackedValue(averageY, YBitFieldLength), YBitFieldLength);
                                 int Cr = getUnpackedValue(getPackedValue(averageCr, CrCbBitFieldLength), CrCbBitFieldLength);
                                 int Cb = getUnpackedValue(getPackedValue(averageCb, CrCbBitFieldLength), CrCbBitFieldLength);
-                                compressedImage.setRGB(xx, yyy, getARGB(Y, Cr, Cb));
+                                compressedRGBValues[offset] = getARGB(Y, Cr, Cb);
                             }
                         }
                     }
                 }
             }
-            // Apologies for the all nested loops.  I wanted to inline the YCrCb calculations for performance reasons,
-            // but it obviously makes the code less readable and harder to debug. There are better ways to do this (including)
-            // improving performance by decompressing all values to an ARGB array and then writing the ARGB values to the
-            // output image in one go, but I wanted to keep the code simple and easy to understand for this demo.
+            // Write the array of decompressed RGB pixel values to the new image.
+            compressedImage.setRGB(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, compressedRGBValues, 0, IMAGE_WIDTH);
 
             // Save the compressed image to disk.  The demo assumes the output file will have a JPEG file extension as we're 
             // outputting a JPEG image, but this could be changed to any other image format supported by ImageIO.
@@ -98,18 +103,18 @@ public class App
             // Print some stats
             // Compressed size in bytes is equal to:
             // (total_blocks * ((CrBits + CbBits) / 8)) + (((image_width * image_height / 2) * YBits) / 8)
-            int widthInBlocks = (int) Math.ceil((double) image.getWidth() / CrCbBlockSize);
-            int heightInBlocks = (int) Math.ceil((double) image.getHeight() / CrCbBlockSize);
-            int crcbDataSize = widthInBlocks * heightInBlocks * (CrCbBitFieldLength + CrCbBitFieldLength) / 8;
-            int ydataSize = (image.getWidth() * image.getHeight() / 2) * YBitFieldLength / 8;
-            int compressedSize = crcbDataSize + ydataSize;
-            int originalSize = rgbValues.length * 3;
+            final int WIDTH_IN_BLOCKS = (int) Math.ceil((double) IMAGE_WIDTH / CrCbBlockSize);
+            final int HEIGHT_IN_BLOCKS = (int) Math.ceil((double) IMAGE_HEIGHT / CrCbBlockSize);
+            final int CRCB_DATA_SIZE = WIDTH_IN_BLOCKS * HEIGHT_IN_BLOCKS * (CrCbBitFieldLength + CrCbBitFieldLength) / 8;
+            final int Y_DATA_SIZE = (IMAGE_WIDTH * IMAGE_HEIGHT / 2) * YBitFieldLength / 8;
+            final int TOTAL_COMPRESSED_DATA_SIZE = CRCB_DATA_SIZE + Y_DATA_SIZE;
+            final int SOURCE_DATA_SIZE = rgbValues.length * 3;
             System.out.println("Image size is " + image.getWidth() + " x " + image.getHeight() + " pixels.");
             System.out.println("Using a compression block size of " + CrCbBlockSize + " x " + CrCbBlockSize + " pixels.");
             System.out.println("Using " + YBitFieldLength + " bits for Y values and " + CrCbBitFieldLength + " bits for Cr and Cb values.");
-            System.out.println("Original size: " + originalSize + " bytes");
-            System.out.println("Compressed size: " + compressedSize + " bytes");
-            System.out.printf("Compression ratio: %.2f%%\n",(float)compressedSize * 100 / originalSize);
+            System.out.println("Original size: " + SOURCE_DATA_SIZE + " bytes");
+            System.out.println("Compressed size: " + TOTAL_COMPRESSED_DATA_SIZE + " bytes");
+            System.out.printf("Compression ratio: %.2f%%\n",(float)TOTAL_COMPRESSED_DATA_SIZE * 100 / SOURCE_DATA_SIZE);
         } catch (Exception e) {
             e.printStackTrace();
         }

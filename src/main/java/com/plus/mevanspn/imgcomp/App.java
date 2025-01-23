@@ -151,7 +151,7 @@ public class App
         } catch (Exception e) {
             value = defaultValue >= minimumValue && defaultValue <= maximumValue ? defaultValue : minimumValue + ((maximumValue - minimumValue) / 2);
         }
-        while (value % divisor != 0) {
+        while (value % divisor != 0 && value < maximumValue) {
             value++;
         }
         return value;

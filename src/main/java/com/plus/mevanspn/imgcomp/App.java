@@ -2,6 +2,9 @@ package com.plus.mevanspn.imgcomp;
 
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
+
+import com.plus.mevanspn.BitStream;
+
 import java.io.*;
 
 public class App {
@@ -34,15 +37,31 @@ public class App {
 
             // Create a new image with the same dimensions as the original, which will hold
             // a copy of the decompressed image.
-            BufferedImage compressedImage = new BufferedImage(IMAGE_WIDTH, IMAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
+            BufferedImage decompressedImage = new BufferedImage(IMAGE_WIDTH, IMAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
 
+            // TEST CODE: Create a bit stream object to hold the compressed image data.
+            BitStream compressedImageData = new BitStream();
+
+            // Compress the image in blocks of CRCB_BLOCK_SIZE x CRCB_BLOCK_SIZE pixels and
+            // keep a record of the total compressed size.
             int totalCompressedSize = 0;
             for (int y = 0; y < IMAGE_HEIGHT; y += CRCB_BLOCK_SIZE) {
                 for (int x = 0; x < IMAGE_WIDTH; x += CRCB_BLOCK_SIZE) {
                     EncodedBlock encodedBlock = new EncodedBlock(SOURCE_IMAGE, x, y, CRCB_BLOCK_SIZE, Y_BITFIELD_LENGTH,
                             CRCB_BITFIELD_LENGTH);
+                    // TEST CODE: Add the compressed data to the compressed image data bit stream.
+                    encodedBlock.addToBitStream(compressedImageData);
+                    // Update the total compressed size.
                     totalCompressedSize += encodedBlock.getCompressedSize();
-                    encodedBlock.toImage(compressedImage);
+                    // Decompress the block and write it to the output image.
+                    encodedBlock.toImage(decompressedImage);
+                }
+            }
+
+            // TEST CODE: Save the RLE encoded data to disk.
+            try (FileOutputStream fos = new FileOutputStream("rle_encoded_data.bin")) {
+                for (Byte b : compressedImageData.RLEEncode()) {
+                    fos.write(b);
                 }
             }
 
@@ -50,7 +69,7 @@ public class App {
             // a JPEG file extension as we're
             // outputting a JPEG image, but this could be changed to any other image format
             // supported by ImageIO.
-            ImageIO.write(compressedImage, "jpg", new File(OUTPUT_FILE));
+            ImageIO.write(decompressedImage, "jpg", new File(OUTPUT_FILE));
 
             // Print some stats
             final int TOTAL_COMPRESSED_DATA_SIZE = totalCompressedSize;

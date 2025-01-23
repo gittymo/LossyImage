@@ -1,6 +1,9 @@
 package com.plus.mevanspn.imgcomp;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+
+import com.plus.mevanspn.BitStream;
 
 final public class EncodedBlock {
 	public EncodedBlock(BufferedImage image, int xpos, int ypos, int blockSize, int compressedYBitFieldLength,
@@ -28,7 +31,8 @@ final public class EncodedBlock {
 		// Create an array of ints to hold the Y values for each pixel in the block.
 		this.YValues = new int[this.blockWidth * this.blockHeight];
 
-		// Get the minimum and maximum Y values for the block and the total Cr and Cb values.
+		// Get the minimum and maximum Y values for the block and the total Cr and Cb
+		// values.
 		long totalCr = 0, totalCb = 0;
 		int minY = 255, maxY = 0;
 		int offset = 0;
@@ -83,7 +87,8 @@ final public class EncodedBlock {
 	}
 
 	public void toImage(BufferedImage image) {
-		// Create an array of ARGB values by decompressing the block's YCbCr values, then write the ARGB values to the target image.
+		// Create an array of ARGB values by decompressing the block's YCbCr values,
+		// then write the ARGB values to the target image.
 
 		// Create an array of ARGB values to hold the decompressed pixel values.
 		int[] argbValues = new int[this.blockWidth * this.blockHeight];
@@ -92,7 +97,8 @@ final public class EncodedBlock {
 			for (int px = 0; px < this.blockWidth; px++, offset++) {
 				// Get the Y delta value for the pixel.
 				int Y = this.YValues[offset];
-				// Shift the Y delta value to the left if the Y delta bitfield length is greater than the compressed Y bitfield length.
+				// Shift the Y delta value to the left if the Y delta bitfield length is greater
+				// than the compressed Y bitfield length.
 				if (this.YDeltaBitfieldLength > this.compressedYBitFieldLength)
 					Y <<= this.YDeltaBitfieldLength - this.compressedYBitFieldLength;
 				// Add the base Y value to the Y delta value.
@@ -125,6 +131,27 @@ final public class EncodedBlock {
 		if (this.maxDeltaValue > 0)
 			length += Math.ceil((this.YValues.length * this.compressedYBitFieldLength) / 8.0);
 		return length;
+	}
+
+	public void addToBitStream(BitStream bitStream) {
+		// Add the block's CrCb bitfield length to the BitStream.
+		bitStream.write((byte) this.CrCbBitFieldLength);
+		// Add the average Cr and Cb values to the BitStream.
+		bitStream.write((byte) this.averageCr, (byte) this.CrCbBitFieldLength);
+		bitStream.write((byte) this.averageCb, (byte) this.CrCbBitFieldLength);
+		// Add the compressed Y bitfield length to the BitStream.
+		bitStream.write((byte) this.compressedYBitFieldLength);
+		// Add the base Y value to the BitStream.
+		bitStream.write((byte) this.baseYValue);
+		// Add the maximum Y delta value to the BitStream.
+		bitStream.write((byte) this.maxDeltaValue);
+		// Add the Y delta values to the BitStream.
+		if (this.maxDeltaValue > 0) {
+			for (int i = 0; i < this.YValues.length; i++) {
+				bitStream.write((byte) YValues[i], (byte) this.compressedYBitFieldLength);
+			}
+			// Return an array of bytes created from the BitStream.
+		}
 	}
 
 	private int averageCr, averageCb;

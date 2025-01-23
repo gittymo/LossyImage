@@ -15,28 +15,25 @@ public class App
         }
         
         // Get the number of bits to use for each colour channel and the block size from the command line arguments.
-        int YBitFieldLength = getNumberInRangeFromArg(args[0], 1, 8, 4);
-        int CrCbBitFieldLength = getNumberInRangeFromArg(args[1], 1, 8, 4);
-        int CrCbBlockSize = getNumberInRangeFromArg(args[2], 2, 8, 8);
+        final int Y_BITFIELD_LENGTH = getNumberInRangeFromArg(args[0], 1, 8, 4, 1);
+        final int CRCB_BITFIELD_LENGTH = getNumberInRangeFromArg(args[1], 1, 8, 4,1);
+        final int CRCB_BLOCK_SIZE = getNumberInRangeFromArg(args[2], 2, 8, 8, 2);
 
         // Get the input and output file names from the command line arguments.
-        String inputFile = args[3];
-        String outputFile = args[4];
-
-        // Make sure blocksize is a multiple of 2, if not make it so.
-        if (CrCbBlockSize % 2 != 0) CrCbBlockSize++;
+        final String INPUT_FILE = args[3];
+        final String OUTPUT_FILE = args[4];
 
         // Read the image and save a copy of it complete with compression artifacts.
         try {
             // Read the image from the source file.
-            BufferedImage image = ImageIO.read(new File(inputFile));
+            final BufferedImage SOURCE_IMAGE = ImageIO.read(new File(INPUT_FILE));
 
             // Define a couple of constants to prevent unnecessary function calls in loops.
-            final int IMAGE_WIDTH = image.getWidth();
-            final int IMAGE_HEIGHT = image.getHeight();
+            final int IMAGE_WIDTH = SOURCE_IMAGE.getWidth();
+            final int IMAGE_HEIGHT = SOURCE_IMAGE.getHeight();
 
             // Get the RGB values of the image pixels.
-            int[] rgbValues = image.getRGB(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null, 0, IMAGE_WIDTH); 
+            int[] rgbValues = SOURCE_IMAGE.getRGB(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT, null, 0, IMAGE_WIDTH); 
             
             // Create a new image with the same dimensions as the original.
             BufferedImage compressedImage = new BufferedImage(IMAGE_WIDTH, IMAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
@@ -48,11 +45,11 @@ public class App
             
             // First, work out the maximum and minimum luminance (Y) value and totals of all the Cr and Cb values in each block of 
             // blockSize x blockSize pixels.
-            for (int y = 0; y < IMAGE_HEIGHT; y += CrCbBlockSize) {
-                for (int x = 0; x < IMAGE_WIDTH; x += CrCbBlockSize) {
+            for (int y = 0; y < IMAGE_HEIGHT; y += CRCB_BLOCK_SIZE) {
+                for (int x = 0; x < IMAGE_WIDTH; x += CRCB_BLOCK_SIZE) {
                     long totalCr = 0, totalCb = 0;
-                    for (int yy = y; yy < IMAGE_HEIGHT && yy < y + CrCbBlockSize; yy++) {
-                        for (int xx = x, offset = (IMAGE_WIDTH * yy) + x; xx < IMAGE_WIDTH && xx < x + CrCbBlockSize; xx++, offset++) {
+                    for (int yy = y; yy < IMAGE_HEIGHT && yy < y + CRCB_BLOCK_SIZE; yy++) {
+                        for (int xx = x, offset = (IMAGE_WIDTH * yy) + x; xx < IMAGE_WIDTH && xx < x + CRCB_BLOCK_SIZE; xx++, offset++) {
                             // Get the YCrCb values for the pixel.
                             int[] YCrCb = getYCrCb(rgbValues[offset]);
                             // Add the Cr and Cb values to the totals.
@@ -65,30 +62,19 @@ public class App
                     // compressed block. We need to make sure we're dividing by the correct number of 
                     // pixels in the block, otherwise we'll end up with weird miscoloured blocks on the
                     // right and bottom of the image.
-                    int xBlockSize = Math.min(CrCbBlockSize, IMAGE_WIDTH - x);
-                    int yBlockSize = Math.min(CrCbBlockSize, IMAGE_HEIGHT - y);
+                    int xBlockSize = Math.min(CRCB_BLOCK_SIZE, IMAGE_WIDTH - x);
+                    int yBlockSize = Math.min(CRCB_BLOCK_SIZE, IMAGE_HEIGHT - y);
                     int averageCr = (int) (totalCr / (xBlockSize * yBlockSize));
                     int averageCb = (int) (totalCb / (xBlockSize * yBlockSize));
-                    // Now go through the block again and use the averaged Cr and Cb values and average of
-                    // every two vertical luminance (Y) values as the compressed image data's YCrCb pixel values.
-                    for (int yy = y; yy < IMAGE_HEIGHT && yy < y + CrCbBlockSize; yy += 2) {
-                        for (int xx = x; xx < IMAGE_WIDTH && xx < x + CrCbBlockSize; xx++) {
-                            // Get the total of every two vertical Y values in the block.
-                            int totalY = 0;
-                            for (int yyy = yy, offset = (IMAGE_WIDTH * yyy) + xx; yyy < IMAGE_HEIGHT && yyy < yy + 2; yyy++, offset += IMAGE_WIDTH) {
-                                int Y = getLuminance(rgbValues[offset]);
-                                totalY += Y;
-                            }
-                            // Work out the average Y value.
-                            int averageY = totalY / 2;
-
-                            // Now go through the block again and write the decompressed RGB values to the compressedRGBValues array.
-                            for (int yyy = yy, offset = (IMAGE_WIDTH * yyy) + xx; yyy < IMAGE_HEIGHT && yyy < yy + 2; yyy++, offset += IMAGE_WIDTH) {   
-                                int Y = getUnpackedValue(getPackedValue(averageY, YBitFieldLength), YBitFieldLength);
-                                int Cr = getUnpackedValue(getPackedValue(averageCr, CrCbBitFieldLength), CrCbBitFieldLength);
-                                int Cb = getUnpackedValue(getPackedValue(averageCb, CrCbBitFieldLength), CrCbBitFieldLength);
-                                compressedRGBValues[offset] = getARGB(Y, Cr, Cb);
-                            }
+                    
+                    for (int yy = y; yy < IMAGE_HEIGHT && yy < y + CRCB_BLOCK_SIZE; yy++) {
+                        for (int xx = x, offset = (IMAGE_WIDTH * yy) + x; xx < IMAGE_WIDTH && xx < x + CRCB_BLOCK_SIZE; xx++, offset++) {
+                            // Get the Y value for the pixel.
+                            int Y = getLuminance(rgbValues[offset]);
+                            int uY = getUnpackedValue(getPackedValue(Y, Y_BITFIELD_LENGTH), Y_BITFIELD_LENGTH);
+                            int uCr = getUnpackedValue(getPackedValue(averageCr, CRCB_BITFIELD_LENGTH), CRCB_BITFIELD_LENGTH);
+                            int uCb = getUnpackedValue(getPackedValue(averageCb, CRCB_BITFIELD_LENGTH), CRCB_BITFIELD_LENGTH);
+                            compressedRGBValues[offset] = getARGB(uY, uCr, uCb);
                         }
                     }
                 }
@@ -98,20 +84,20 @@ public class App
 
             // Save the compressed image to disk.  The demo assumes the output file will have a JPEG file extension as we're 
             // outputting a JPEG image, but this could be changed to any other image format supported by ImageIO.
-            ImageIO.write(compressedImage, "jpg", new File(outputFile));
+            ImageIO.write(compressedImage, "jpg", new File(OUTPUT_FILE));
 
             // Print some stats
             // Compressed size in bytes is equal to:
-            // (total_blocks * ((CrBits + CbBits) / 8)) + (((image_width * image_height / 2) * YBits) / 8)
-            final int WIDTH_IN_BLOCKS = (int) Math.ceil((double) IMAGE_WIDTH / CrCbBlockSize);
-            final int HEIGHT_IN_BLOCKS = (int) Math.ceil((double) IMAGE_HEIGHT / CrCbBlockSize);
-            final int CRCB_DATA_SIZE = WIDTH_IN_BLOCKS * HEIGHT_IN_BLOCKS * (CrCbBitFieldLength + CrCbBitFieldLength) / 8;
-            final int Y_DATA_SIZE = (IMAGE_WIDTH * IMAGE_HEIGHT / 2) * YBitFieldLength / 8;
+            // (total_blocks * ((CrBits + CbBits) / 8)) + (((image_width * image_height) * YBits) / 8)
+            final int WIDTH_IN_BLOCKS = (int) Math.ceil((double) IMAGE_WIDTH / CRCB_BLOCK_SIZE);
+            final int HEIGHT_IN_BLOCKS = (int) Math.ceil((double) IMAGE_HEIGHT / CRCB_BLOCK_SIZE);
+            final int CRCB_DATA_SIZE = WIDTH_IN_BLOCKS * HEIGHT_IN_BLOCKS * (CRCB_BITFIELD_LENGTH + CRCB_BITFIELD_LENGTH) / 8;
+            final int Y_DATA_SIZE = (IMAGE_WIDTH * IMAGE_HEIGHT) * Y_BITFIELD_LENGTH / 8;
             final int TOTAL_COMPRESSED_DATA_SIZE = CRCB_DATA_SIZE + Y_DATA_SIZE;
             final int SOURCE_DATA_SIZE = rgbValues.length * 3;
-            System.out.println("Image size is " + image.getWidth() + " x " + image.getHeight() + " pixels.");
-            System.out.println("Using a compression block size of " + CrCbBlockSize + " x " + CrCbBlockSize + " pixels.");
-            System.out.println("Using " + YBitFieldLength + " bits for Y values and " + CrCbBitFieldLength + " bits for Cr and Cb values.");
+            System.out.println("Image size is " + SOURCE_IMAGE.getWidth() + " x " + SOURCE_IMAGE.getHeight() + " pixels.");
+            System.out.println("Using a compression block size of " + CRCB_BLOCK_SIZE + " x " + CRCB_BLOCK_SIZE + " pixels.");
+            System.out.println("Using " + Y_BITFIELD_LENGTH + " bits for Y values and " + CRCB_BITFIELD_LENGTH + " bits for Cr and Cb values.");
             System.out.println("Original size: " + SOURCE_DATA_SIZE + " bytes");
             System.out.println("Compressed size: " + TOTAL_COMPRESSED_DATA_SIZE + " bytes");
             System.out.printf("Compression ratio: %.2f%%\n",(float)TOTAL_COMPRESSED_DATA_SIZE * 100 / SOURCE_DATA_SIZE);
@@ -156,14 +142,17 @@ public class App
         return (int) (0.299 * red + 0.587 * green + 0.114 * blue);
     }
 
-    public static int getNumberInRangeFromArg(String argString, int minimumValue, int maximumValue, int defaultValue) {
+    public static int getNumberInRangeFromArg(String argString, int minimumValue, int maximumValue, int defaultValue, int divisor) {
         int value = 0;
         try {
             value = Integer.parseInt(argString);
             if (value < minimumValue) value = minimumValue;
             if (value > maximumValue) value = maximumValue;
         } catch (Exception e) {
-            value = defaultValue;
+            value = defaultValue >= minimumValue && defaultValue <= maximumValue ? defaultValue : minimumValue + ((maximumValue - minimumValue) / 2);
+        }
+        while (value % divisor != 0) {
+            value++;
         }
         return value;
     }

@@ -70,42 +70,6 @@ public class App {
         }
     }
 
-    public static int getUnpackedValue(int value, int valueBits) {
-        return value << (8 - valueBits);
-    }
-
-    public static int getPackedValue(int value, int requiredBits) {
-        return value >> (8 - requiredBits);
-    }
-
-    public static int[] getYCrCb(int argb) {
-        int red = (argb & 0x00FF0000) >> 16;
-        int green = (argb & 0x0000FF00) >> 8;
-        int blue = argb & 0xFF;
-        int y = (int) (0.299 * red + 0.587 * green + 0.114 * blue);
-        int cr = (int) ((red - y) * 0.713 + 128);
-        int cb = (int) ((blue - y) * 0.564 + 128);
-        return new int[] { y, cr, cb };
-    }
-
-    public static int getARGB(int Y, int Cr, int Cb) {
-        int red = (int) (Y + 1.403 * (Cr - 128));
-        int green = (int) (Y - 0.344 * (Cb - 128) - 0.714 * (Cr - 128));
-        int blue = (int) (Y + 1.770 * (Cb - 128));
-
-        red = red < 0 ? 0 : red > 255 ? 255 : red;
-        green = green < 0 ? 0 : green > 255 ? 255 : green;
-        blue = blue < 0 ? 0 : blue > 255 ? 255 : blue;
-        return red << 16 | green << 8 | blue;
-    }
-
-    public static int getLuminance(int argb) {
-        int red = (argb & 0x00FF0000) >> 16;
-        int green = (argb & 0x0000FF00) >> 8;
-        int blue = argb & 0xFF;
-        return (int) (0.299 * red + 0.587 * green + 0.114 * blue);
-    }
-
     public static int getNumberInRangeFromArg(String argString, int minimumValue, int maximumValue, int defaultValue,
             int divisor) {
         int value = 0;
